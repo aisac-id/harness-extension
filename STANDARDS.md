@@ -1,4 +1,4 @@
-# STANDARDS — Harness Extension v1.4
+# STANDARDS — Harness Extension v1.5
 
 Semua extension di bawah akun `aisac-id` wajib mematuhi dokumen ini.
 Kata kunci: **WAJIB** (harus), **DISARANKAN** (sebaiknya), **DILARANG** (tidak boleh).
@@ -36,7 +36,16 @@ extension/
 ├── core/
 │   ├── MessageBus.js
 │   ├── StorageService.js     # wrapper chrome.storage
+│   ├── SecretVault.js        # enkripsi secret + import .env (7.7-7.9)
 │   └── Settings.js
+├── llm/                      # LLM multi-provider (lihat 5f)
+│   ├── LlmHub.js             # registri provider, routing, fallback, biaya
+│   ├── providers/            # 1 class per provider, maks 300 LoC
+│   └── PromptLibrary.js      # template prompt per tugas bisnis
+├── license/
+│   └── LicenseService.js     # aktivasi lisensi/bundle offline (bagian 9)
+├── onboarding/
+│   └── OnboardingFlow.js     # tutorial bernomor (bagian 8, UX_FLOW.md)
 ├── rpa/
 │   ├── RpaEngine.js          # eksekusi langkah
 │   ├── SelectorEngine.js     # resolusi selector + fallback
@@ -201,6 +210,21 @@ Platform ◀──data── PlatformBridge ◀── hasil extract
 10. **Batas etis & risiko (wajib tertulis di README):** hanya data yang terlihat oleh user login tersebut; tanpa menyimpan password situs target; tanpa bypass login/CAPTCHA; data pribadi diminimalkan sesuai kebutuhan job; otomatisasi akun sendiri bisa melanggar ToS situs target (mis. LinkedIn) — risiko pembatasan akun ditanggung dan disadari user.
 11. Ingest token di sisi platform sebaiknya **write-only** (hanya boleh kirim data + ambil job, bukan akses penuh akun) dan bisa di-rotate dari Settings tanpa install ulang.
 
+### 5f. LLM Bridge — multi-provider, provider terbaru tinggal tambah class
+
+1. Class **`LlmHub`** (terdaftar di `ConnectionHub`): registri provider, routing per tugas, **fallback chain** (mis. provider A gagal/rate-limit → B → C), dan pencatat pemakaian (token & estimasi biaya) yang tampil di Settings → Koneksi.
+2. **Kontrak provider seragam** — provider baru = satu class ≤ 300 LoC di `llm/providers/` dengan API: `listModels()`, `chat(messages, opts)`, `stream(messages, opts)` (SSE), `testConnection()`. Menambah provider terbaru TIDAK boleh mengubah LlmHub/pipeline.
+3. Provider bawaan yang wajib didukung arsitekturnya:
+   - **OpenAI-compatible generic** (satu class covers OpenAI, Groq, DeepSeek, Mistral, Together, OpenRouter, xAI, dan endpoint kompatibel lain — cukup `baseURL` + `model` configurable),
+   - **Anthropic** (format messages API sendiri),
+   - **Google Gemini** (format sendiri),
+   - **Lokal: Ollama / LM Studio** via `http://127.0.0.1` (privasi penuh, tanpa API key).
+4. Semua konfigurasi per provider: `baseURL`, `model`, API key (via SecretVault 7.7), timeout, batas biaya harian. **Multi-provider aktif bersamaan** dan bisa dipilih per tugas (mis. ringkas halaman → provider murah; analisis dokumen → provider pintar; data sensitif → lokal).
+5. **PromptLibrary**: template prompt per tugas bisnis (ringkas, ekstrak entitas, klasifikasi, drafting) disimpan sebagai data, bisa diedit user di Settings; hasil LLM masuk **DataPipeline yang sama** (6b) dengan provenance `provider+model`.
+6. Streaming ke UI wajib untuk jawaban panjang (render bertahap, bisa di-stop); retry backoff untuk 429/5xx; tanpa blocking UI.
+7. **Privasi**: kirim data ke LLM cloud hanya atas aksi/toggle eksplisit user per jenis tugas; tampilkan provider tujuan sebelum kirim pertama kali; opsi "local-only" untuk data sensitif. API key tidak pernah masuk prompt/log.
+8. Panggilan LLM dari background service worker; DILARANG fetch API key-bearing dari content script halaman pihak ketiga.
+
 ---
 
 ## 6. Scraping & Data Pipeline — Panen Apa Pun, Olah, Simpan, Analisis (WAJIB bila fitur diminta)
@@ -253,12 +277,46 @@ Prinsip: **RPA-first** — semua scraper bekerja pada DOM halaman yang dibuka us
 4. Sanitasi semua input yang dirender ke DOM (pakai `textContent`, bukan `innerHTML` untuk data user).
 5. DILARANG commit secret/token/API key ke repo. Konfigurasi sensitif dimasukkan user lewat panel Settings.
 6. Field password tidak pernah di-log/disimpan oleh fitur RPA/recorder.
+7. **SecretVault (WAJIB untuk semua secret: API key LLM, ingest token, pairing token)** — class `core/SecretVault.js`:
+   - Enkripsi **AES-GCM 256** via WebCrypto; key diturunkan dari passphrase user dengan **PBKDF2 ≥ 600.000 iterasi** (atau device-key non-extractable di IndexedDB untuk mode tanpa passphrase).
+   - Ciphertext saja yang masuk `chrome.storage.local`; plaintext secret hanya hidup di memory service worker, **auto-lock** setelah idle (default 30 menit, configurable).
+   - UI: field secret masked + tombol lihat/salin; unlock sekali per sesi browser.
+8. **Dukungan `.env` (import, bukan baca filesystem)**:
+   - Extension TIDAK bisa membaca file `.env` langsung dari disk — jalurnya: user **import file `.env`** lewat Settings → Koneksi (file picker), diparse (`KEY=VALUE`, dukung komentar/kutip), dipetakan ke config (mis. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `PLATFORM_URL`, `INGEST_TOKEN`), lalu disimpan **terenkripsi di SecretVault**. File asli tidak disalin/disimpan.
+   - **Export `.env`** opsional dengan peringatan eksplisit (hasil plaintext di file unduhan = tanggung jawab user); default export TIDAK menyertakan secret.
+   - Repo wajib menyertakan **`.env.example`** (nama key tanpa nilai) dan `.gitignore` yang memblokir `.env*` (kecuali `.env.example`).
+   - Mode companion (NativeBridge/LocalBridge): companion boleh membaca `.env` asli di mesin user (dotenv standar); secret TIDAK dikirim balik ke extension kecuali diminta fitur, dan tidak pernah ke halaman web.
+9. **DILARANG**: inject API key saat build ke bundle yang didistribusikan, menaruh secret di `manifest.json`, `chrome.storage.sync`, URL query string, atau log.
 
 ---
 
-## 8. Kualitas & Delivery
+## 8. UX Flow & Tutorial Bernomor (WAJIB)
 
-1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.4.
+1. Setiap extension wajib mengimplementasikan **onboarding flow bernomor** sesuai **[UX_FLOW.md](UX_FLOW.md)** (12 langkah baku, boleh ditambah langkah spesifik produk, tidak boleh dikurangi kecuali fitur terkait tidak ada).
+2. Class `OnboardingFlow` menampilkan langkah bernomor `1/12, 2/12, ...` dengan judul + penjelasan singkat + aksi nyata per langkah (bukan cuma teks), bisa **skip**, **back**, dan **resume** (state di storage).
+3. **Guided tour** coach-mark bernomor menyorot elemen UI asli (rail tab, tombol fullscreen, panel Data, Settings) — bukan modal terpisah yang tidak nyambung ke UI.
+4. Setiap panel utama punya tombol **"?"** yang membuka penjelasan langkah terkait; semua teks penjelasan Bahasa Indonesia, kalimat pendek, tanpa jargon.
+5. **First-run demo**: langkah demo menjalankan satu job kecil nyata (mis. panen 3 gambar dari halaman demo lokal yang disertakan) supaya user langsung melihat hasil di tab "Data" tanpa perlu situs target.
+6. Tutorial bisa diulang kapan saja dari Settings → Umum → "Mulai ulang tutorial".
+
+---
+
+## 9. Lisensi & Bundling — Bisa Dijual dengan Apa Pun (WAJIB bila dijual)
+
+1. Class **`LicenseService`**: aktivasi via **license key** yang ditandatangani **Ed25519** — verifikasi **offline** memakai public key yang tertanam di extension (tanpa server wajib). Payload key: `edition, bundleId, seats, expiry, issuedTo`.
+2. **Editions**: `free` (fitur inti terbatas), `pro` (semua fitur), `bundle-<nama>` (pro + konten bonus), `enterprise` (white-label). Feature gating lewat satu titik (`LicenseService.can(feature)`), bukan cek tersebar.
+3. **Bundling dengan apa pun**: buku, video course, template, jasa konsultasi, hardware — mekanismenya sama: kode lisensi dicetak di buku / disisipkan di deskripsi video / QR code → user masukkan sekali di onboarding langkah aktivasi → edition terbuka. `bundleId` mencatat jalur bundling untuk analitik penjual.
+4. Aktivasi online opsional (ke platform via 5e) untuk seat management; **offline grace minimal 14 hari** tanpa koneksi; lisensi tidak boleh mengunci data milik user — data lokal tetap bisa di-export walau lisensi habis (fitur panen baru saja yang terkunci).
+5. **White-label**: nama, logo, warna, dan link bantuan dari satu file config branding — agar satu extension bisa dijual ulang oleh partner dengan brand mereka tanpa fork kode.
+6. Trial default 14 hari fitur pro, tanpa kartu; setelah trial turun ke free dengan pemberitahuan jelas, bukan error mendadak.
+7. DILARANG: telemetry diam-diam untuk penegakan lisensi, mengunci export data user, lisensi yang butuh koneksi terus-menerus.
+8. README bagian penjualan wajib menjelaskan: editions, cara aktivasi, cara refund/transfer seat, dan kontak support.
+
+---
+
+## 10. Kualitas & Delivery
+
+1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.5.
 2. Tanpa error di console saat alur normal; log pakai satu class `Logger` dengan level, default minim.
 3. Versi `manifest.json` mengikuti SemVer; perubahan dicatat di `CHANGELOG.md`.
 4. Ikon: SVG sumber + PNG 16/32/48/128, ukuran kecil.
@@ -277,6 +335,10 @@ Prinsip: **RPA-first** — semua scraper bekerja pada DOM halaman yang dibuka us
 - [ ] Bila ada Platform Bridge: ingest token via Settings, HTTPS, idempotencyKey + outbox queue, auto-pause saat blocked, peringatan ToS di README
 - [ ] Bila ada scraper: ScraperHub + DataPipeline satu jalur, LibraryStore IndexedDB, tab "Data" (preview/analisis/export), provenance per item, pacing sopan, disclaimer hak cipta di README
 - [ ] Scraper tetap jalan penuh tanpa API/MCP; jalur API/MCP (bila ada) opsional dan masuk pipeline yang sama
+- [ ] Bila ada LLM: LlmHub multi-provider + fallback, provider baru = 1 class tanpa ubah hub, streaming, batas biaya, toggle privasi per tugas
+- [ ] Semua secret di SecretVault (AES-GCM + PBKDF2), import .env via Settings, .env.example + .gitignore, tanpa secret di bundle/sync/log
+- [ ] Onboarding 12 langkah bernomor (UX_FLOW.md) + guided tour + demo first-run + bisa diulang
+- [ ] Bila dijual: LicenseService Ed25519 offline, editions + bundleId, trial 14 hari, data user tidak terkunci, white-label config
 - [ ] Tidak ada polling liar, eval, CDN eksternal, atau secret di repo
 - [ ] Load unpacked di Chrome tanpa error console
 - [ ] README + CHANGELOG + manifest SemVer lengkap

@@ -30,6 +30,10 @@ Template perintah lengkap ada di [PROMPT_TEMPLATE.md](PROMPT_TEMPLATE.md).
 | Konektivitas | Bisa connect ke **situs/API tertentu** (SiteAdapter), **desktop app** (Native Messaging + companion host), dan **terminal/CLI** (whitelist command, loopback + pairing token) — semua via `ConnectionHub`, default OFF |
 | Platform Bridge | Extension jadi **worker RPA untuk platform**: platform kirim job via **ingest token** → extension RPA di sesi login user (mis. LinkedIn, tanpa API/MCP) → hasil dikirim ke endpoint ingest platform (outbox queue, idempotent, auto-pause saat blocked) |
 | Scraper & Pipeline | Panen apa pun: **gambar, teks/tabel, novel (TXT/EPUB/MD), download file** → pipeline clean/dedupe → **IndexedDB** → analisis & preview di tab "Data" → export JSON/CSV/ZIP atau kirim ke platform. **RPA-first, tanpa API/MCP**; API/MCP opsional bila tersedia |
+| LLM | **Multi-provider**: OpenAI-compatible (OpenAI/Groq/DeepSeek/OpenRouter/xAI/dll), Anthropic, Gemini, **lokal Ollama** — provider baru = 1 class. Fallback chain, streaming, batas biaya, privasi per tugas |
+| Secret & .env | **SecretVault terenkripsi** (AES-GCM + PBKDF2), **import file .env** via Settings, `.env.example` + `.gitignore` wajib, secret tidak pernah di bundle/log |
+| UX | **Onboarding 12 langkah bernomor** dengan penjelasan + demo nyata ([UX_FLOW.md](UX_FLOW.md)), guided tour, bisa diulang |
+| Bisnis & Jual | **Lisensi offline Ed25519**, editions Free/Pro/Bundle/Enterprise, **bundling dengan buku/video/apa pun** via kode, white-label. Katalog 20 sektor: [BUSINESS_PLAYBOOK.md](BUSINESS_PLAYBOOK.md) |
 | Keamanan | Permission minimum, tanpa eval/remote code, tanpa secret hardcoded |
 
 Detail lengkap, struktur folder, dan checklist acceptance: **[STANDARDS.md](STANDARDS.md)**.

@@ -1,0 +1,12 @@
+# Secret — jangan pernah commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+license-private*
+
+# Build & OS
+node_modules/
+dist/
+.DS_Store

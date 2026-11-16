@@ -14,6 +14,9 @@ Salin template ini, isi bagian `[...]`, lalu kirim ke agent bersama GitHub token
 > Konektivitas (jika perlu): [misal: "connect ke API situs X", "connect ke desktop app Y via native messaging", "bisa jalankan command terminal: git, npm"].
 > Platform Bridge (jika perlu): [misal: "extension jadi worker untuk platform saya: ambil job via ingest token, RPA cari data di LinkedIn pakai sesi login saya, kirim hasil ke endpoint ingest platform" — ikuti bagian 5e].
 > Scraper (jika perlu): [misal: "scraper gambar + novel multi-bab, hasil disimpan lokal, bisa dianalisis dan di-export EPUB/ZIP, dan bisa dikirim ke platform" — ikuti bagian 6, RPA-first tanpa API/MCP].
+> LLM (jika perlu): [misal: "multi-provider OpenAI + Gemini + Ollama lokal untuk ringkas dan ekstrak data, API key saya import dari .env" — ikuti bagian 5f + SecretVault 7.7].
+> Sektor bisnis (jika perlu): [misal: "untuk notaris, ide dari BUSINESS_PLAYBOOK.md nomor 1" — sertakan template job + PromptLibrary sektoral].
+> Dijual/bundling (jika perlu): [misal: "edition Free/Pro, bundle dengan buku saya, kode lisensi di halaman akhir buku" — ikuti bagian 9].
 >
 > **Wajib ikuti seluruh standar di repo `aisac-id/harness-extension`**
 > (https://github.com/aisac-id/harness-extension — baca STANDARDS.md dan AGENTS.md dulu).

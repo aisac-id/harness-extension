@@ -11,7 +11,10 @@ Jika kamu agent yang diminta membuat extension dengan mengacu repo ini:
 7. Bila user minta scraper/downloader (gambar, teks, novel, file, apa pun): ikuti STANDARDS.md bagian 6 — ScraperHub + scraper class per jenis, semua hasil lewat DataPipeline → LibraryStore (IndexedDB) → tab "Data" untuk preview/analisis/export. RPA-first: fitur inti TIDAK boleh bergantung API/MCP; API/MCP hanya jalur opsional. Tanpa bypass paywall/DRM/CAPTCHA.
 8. UI wajib: sidebar kanan 25% viewport (min 280px, max 420px), Shadow DOM, tiga mode rail/sidebar/fullscreen (Alt+Shift+S / Alt+Shift+F, Esc keluar fullscreen), tab vertikal menurun di sisi kiri sidebar, panel lazy, dan **Full Settings** sesuai STANDARDS.md bagian 3.8 (semua perilaku configurable, tanpa magic number di luar class Settings).
 9. Vanilla JS ES Modules + class. Tanpa React/Vue, tanpa CDN, tanpa eval, tanpa polling liar.
-10. Jalankan **Checklist acceptance** di akhir STANDARDS.md dan laporkan hasilnya ke user (centang yang lolos, jelaskan yang tidak).
-11. Jangan commit token/secret apa pun. Gunakan token hanya untuk membuat repo & push sesuai perintah user.
-12. Bahasa UI dan README: Bahasa Indonesia, kecuali user minta lain.
-13. Jika ada konflik antara permintaan user dan standar ini, tanyakan user dulu — jangan diam-diam melanggar standar.
+10. Bila ada LLM: ikuti 5f — LlmHub multi-provider, provider baru = 1 class kontrak seragam, fallback, streaming, batas biaya. Semua secret WAJIB lewat SecretVault (7.7): AES-GCM + PBKDF2, import .env via Settings, sertakan .env.example + .gitignore. JANGAN inject key ke bundle.
+11. Wajib implementasikan onboarding 12 langkah bernomor sesuai UX_FLOW.md (demo first-run nyata, guided tour, resume, bisa diulang).
+12. Bila extension dijual/bundling: ikuti bagian 9 — LicenseService Ed25519 offline, editions, trial 14 hari, data user tidak boleh terkunci, white-label config. Ide produk per sektor ada di BUSINESS_PLAYBOOK.md.
+13. Jalankan **Checklist acceptance** di akhir STANDARDS.md dan laporkan hasilnya ke user (centang yang lolos, jelaskan yang tidak).
+14. Jangan commit token/secret apa pun. Gunakan token hanya untuk membuat repo & push sesuai perintah user.
+15. Bahasa UI dan README: Bahasa Indonesia, kecuali user minta lain.
+16. Jika ada konflik antara permintaan user dan standar ini, tanyakan user dulu — jangan diam-diam melanggar standar.
