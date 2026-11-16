@@ -1,4 +1,4 @@
-# STANDARDS — Harness Extension v1.0
+# STANDARDS — Harness Extension v1.1
 
 Semua extension di bawah akun `aisac-id` wajib mematuhi dokumen ini.
 Kata kunci: **WAJIB** (harus), **DISARANKAN** (sebaiknya), **DILARANG** (tidak boleh).
@@ -42,6 +42,12 @@ extension/
 │   ├── SelectorEngine.js     # resolusi selector + fallback
 │   ├── ActionLibrary.js      # click/type/wait/scroll/extract, dll.
 │   └── ScriptStore.js        # simpan/export/import script JSON
+├── connectors/               # lapisan konektivitas (lihat bagian 5)
+│   ├── ConnectionHub.js      # registri + status semua koneksi
+│   ├── web/                  # 1 class SiteAdapter per situs/API
+│   ├── NativeBridge.js       # native messaging ke desktop app
+│   ├── LocalBridge.js        # WebSocket ws://127.0.0.1 (terminal/CLI)
+│   └── native-host/          # companion app + script install per OS
 └── utils/                    # helper murni, tanpa state
 ```
 
@@ -96,7 +102,61 @@ Setiap extension, apa pun fungsinya, wajib punya lapisan RPA yang bisa dipakai u
 
 ---
 
-## 5. Keamanan & Privasi (WAJIB)
+## 5. Konektivitas — Web, Desktop App, Terminal (WAJIB bila fitur diminta)
+
+Semua koneksi dikelola satu class **`ConnectionHub`**: registri connector, status (`connected | disconnected | error`), dan indikator status real-time di tab sidebar **"Koneksi"**. Setiap connector adalah class terpisah di `connectors/`, maks 300 LoC, dengan API seragam: `connect()`, `disconnect()`, `send(request)`, event status.
+
+Format pesan seragam antar semua jalur (envelope JSON):
+
+```json
+{ "id": "uuid", "type": "request|response|event", "action": "nama.aksi", "payload": {}, "error": null }
+```
+
+Semua request punya timeout (default 10 detik) dan retry backoff untuk koneksi yang putus.
+
+### 5a. Koneksi ke web / situs tertentu
+
+1. **SiteAdapter**: satu class per situs/API di `connectors/web/`, mendeklarasikan `matches` (URL pattern) sendiri. `host_permissions` manifest HANYA berisi situs yang didukung — DILARANG `<all_urls>` untuk fitur ini.
+2. Adapter memisahkan: autentikasi, pemanggilan API, dan parsing respons — sehingga ganti situs cukup ganti/tambah adapter.
+3. Panggilan HTTP/API eksternal dilakukan dari **background service worker** (bebas CORS), bukan content script; content script hanya untuk interaksi DOM halaman.
+4. WebSocket untuk realtime: auto-reconnect dengan backoff (maks 5 percobaan), wajib disconnect saat sidebar ditutup / tidak dipakai.
+5. API key / token situs dimasukkan user lewat panel **Settings**, disimpan di `chrome.storage.local` (bukan `sync`), DILARANG hardcoded.
+6. Rate limit per adapter (default maks 2 request/detik) dan hormati robots/ToS situs; tanpa bypass login/CAPTCHA.
+
+### 5b. Koneksi ke desktop app (Native Messaging)
+
+1. Jalur resmi: **Chrome Native Messaging** (`chrome.runtime.connectNative`), permission `"nativeMessaging"`.
+2. Class **`NativeBridge`**: request/response berdasarkan `id` envelope, timeout, auto-reconnect, deteksi host belum terinstall → tampilkan panduan install di sidebar.
+3. Repo WAJIB menyertakan **companion host** di `connectors/native-host/`:
+   - Satu executable/script ringan (Node.js atau Python, tanpa dependency berat).
+   - Protokol stdio native messaging: prefix panjang 4-byte little-endian + JSON, maks 1 MB per pesan (pesan besar di-chunk).
+   - Host manifest JSON (`name`, `path`, `type: "stdio"`, `allowed_origins` = ID extension saja).
+   - Script install per OS: Windows (registry key), macOS/Linux (folder `NativeMessagingHosts`).
+4. Desktop app pihak ketiga yang sudah punya protokol sendiri boleh dihubungkan lewat companion host sebagai penerjemah — extension tetap hanya bicara Native Messaging.
+5. Companion host memvalidasi setiap pesan; DILARANG meneruskan perintah apa pun tanpa melewati whitelist (lihat 5c).
+
+### 5c. Koneksi ke terminal / CLI
+
+1. Dua jalur resmi, pilih sesuai kebutuhan:
+   - **Via NativeBridge** (5b): companion host mengeksekusi command dan mengembalikan stdout/stderr/exit code.
+   - **Via LocalBridge**: WebSocket ke `ws://127.0.0.1:<port>` milik CLI companion di mesin user. DILARANG bind/connect ke alamat selain loopback; wajib **pairing token** (ditampilkan CLI, dimasukkan user sekali di Settings).
+2. **Whitelist command WAJIB**: hanya command yang terdaftar di config (mis. `git status`, `npm run build`) yang boleh jalan. Mode "perintah bebas" default OFF, harus diaktifkan sadar oleh user, dan setiap perintah baru butuh konfirmasi eksplisit di sidebar.
+3. Eksekusi tanpa shell interpolation: gunakan spawn dengan array argumen, BUKAN string ke `sh -c` / `cmd /c` (cegah command injection). Validasi argumen, batasi working directory.
+4. DILARANG default: command destruktif (`rm -rf`, format, dsb.), akses di luar working directory, dan eksekusi berantai tanpa konfirmasi.
+5. Setiap eksekusi tercatat di panel "Koneksi": command, waktu, exit code, cuplikan output; bisa di-export sebagai log.
+6. Output besar dipotong/stream bertahap (maks 1 MB per pesan native messaging), proses panjang bisa di-**stop** dari sidebar.
+
+### 5d. Keamanan konektivitas (berlaku semua jalur)
+
+1. Semua jalur default **OFF**; user mengaktifkan per connector dari tab "Koneksi".
+2. Tidak ada server yang di-expose ke jaringan luar — loopback saja; pairing token untuk LocalBridge, `allowed_origins` ketat untuk native host.
+3. Secret (API key, pairing token) hanya di `chrome.storage.local`, tidak pernah di-log, tidak pernah di-commit.
+4. Payload dari luar diperlakukan tidak terpercaya: validasi skema envelope, sanitasi sebelum dirender ke DOM (`textContent`).
+5. README extension wajib mencantumkan: connector yang dipakai, cara install companion host/CLI, dan alasan tiap permission terkait.
+
+---
+
+## 6. Keamanan & Privasi (WAJIB)
 
 1. Permission manifest **minimum**: hanya yang benar-benar dipakai; `host_permissions` sesempit mungkin; hindari `<all_urls>` kecuali fitur memang butuh, dan jelaskan alasannya di README.
 2. DILARANG: `eval`, remote code, injeksi script dari URL eksternal, exfiltration data.
@@ -107,9 +167,9 @@ Setiap extension, apa pun fungsinya, wajib punya lapisan RPA yang bisa dipakai u
 
 ---
 
-## 6. Kualitas & Delivery
+## 7. Kualitas & Delivery
 
-1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, dan pernyataan patuh standar Harness v1.0.
+1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.1.
 2. Tanpa error di console saat alur normal; log pakai satu class `Logger` dengan level, default minim.
 3. Versi `manifest.json` mengikuti SemVer; perubahan dicatat di `CHANGELOG.md`.
 4. Ikon: SVG sumber + PNG 16/32/48/128, ukuran kecil.
@@ -123,6 +183,8 @@ Setiap extension, apa pun fungsinya, wajib punya lapisan RPA yang bisa dipakai u
 - [ ] Sidebar 25% viewport, pinggir kanan, Shadow DOM, collapsible
 - [ ] Tab vertikal menurun di sisi, panel lazy
 - [ ] Lapisan RPA lengkap (Engine, Selector, ActionLibrary, ScriptStore) + export/import JSON
+- [ ] Bila ada konektivitas: ConnectionHub + tab "Koneksi", connector sesuai bagian 5, default OFF, whitelist command, loopback-only, pairing token
+- [ ] Bila ada native messaging: companion host + host manifest + script install per OS disertakan
 - [ ] Tidak ada polling liar, eval, CDN eksternal, atau secret di repo
 - [ ] Load unpacked di Chrome tanpa error console
 - [ ] README + CHANGELOG + manifest SemVer lengkap

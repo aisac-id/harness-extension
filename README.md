@@ -27,6 +27,7 @@ Template perintah lengkap ada di [PROMPT_TEMPLATE.md](PROMPT_TEMPLATE.md).
 | Performa | Ringan: vanilla JS / maksimal Preact, total bundle < 500 KB, tanpa framework berat, event-driven (bukan polling) |
 | UI | **Sidebar selebar 1/4 viewport** di pinggir kanan, collapsible, **tab vertikal** (icon rail menurun di sisi) |
 | RPA | Semua extension harus RPA-ready: action layer terpisah, selector engine, recorder/player opsional, script JSON export/import |
+| Konektivitas | Bisa connect ke **situs/API tertentu** (SiteAdapter), **desktop app** (Native Messaging + companion host), dan **terminal/CLI** (whitelist command, loopback + pairing token) — semua via `ConnectionHub`, default OFF |
 | Keamanan | Permission minimum, tanpa eval/remote code, tanpa secret hardcoded |
 
 Detail lengkap, struktur folder, dan checklist acceptance: **[STANDARDS.md](STANDARDS.md)**.

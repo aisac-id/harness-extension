@@ -11,6 +11,7 @@ Salin template ini, isi bagian `[...]`, lalu kirim ke agent bersama GitHub token
 > Fungsi utama: [DESKRIPSI 1–3 KALIMAT, misal: "mengisi formulir web otomatis dari data CSV"].
 > Target situs (jika khusus): [URL / "semua situs"].
 > Fitur tambahan: [misal: recorder RPA, export hasil ke CSV, jadwal via alarms].
+> Konektivitas (jika perlu): [misal: "connect ke API situs X", "connect ke desktop app Y via native messaging", "bisa jalankan command terminal: git, npm"].
 >
 > **Wajib ikuti seluruh standar di repo `aisac-id/harness-extension`**
 > (https://github.com/aisac-id/harness-extension — baca STANDARDS.md dan AGENTS.md dulu).
