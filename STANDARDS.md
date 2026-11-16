@@ -1,4 +1,4 @@
-# STANDARDS — Harness Extension v1.1
+# STANDARDS — Harness Extension v1.2
 
 Semua extension di bawah akun `aisac-id` wajib mematuhi dokumen ini.
 Kata kunci: **WAJIB** (harus), **DISARANKAN** (sebaiknya), **DILARANG** (tidak boleh).
@@ -47,6 +47,7 @@ extension/
 │   ├── web/                  # 1 class SiteAdapter per situs/API
 │   ├── NativeBridge.js       # native messaging ke desktop app
 │   ├── LocalBridge.js        # WebSocket ws://127.0.0.1 (terminal/CLI)
+│   ├── PlatformBridge.js     # koneksi ke platform via ingest token (5e)
 │   └── native-host/          # companion app + script install per OS
 └── utils/                    # helper murni, tanpa state
 ```
@@ -154,6 +155,31 @@ Semua request punya timeout (default 10 detik) dan retry backoff untuk koneksi y
 4. Payload dari luar diperlakukan tidak terpercaya: validasi skema envelope, sanitasi sebelum dirender ke DOM (`textContent`).
 5. README extension wajib mencantumkan: connector yang dipakai, cara install companion host/CLI, dan alasan tiap permission terkait.
 
+### 5e. Platform Bridge — extension sebagai worker RPA untuk platform (Ingest Token)
+
+Pola: platform tidak bisa login ke situs target / tidak ada API resmi → extension menumpang **sesi login user di browser** untuk RPA, lalu mengirim hasilnya ke platform. Extension = jembatan, bukan API/MCP.
+
+```
+Platform ──job──▶ PlatformBridge ──▶ RpaEngine (tab user, sesi login user)
+Platform ◀──data── PlatformBridge ◀── hasil extract
+```
+
+1. Class **`PlatformBridge`** di `connectors/`, terdaftar di `ConnectionHub`, status tampil di tab "Koneksi".
+2. **Konfigurasi user** lewat panel Settings: `Platform URL` + `Ingest Token`. Token disimpan di `chrome.storage.local`, DILARANG hardcoded/commit/di-log. Kirim sebagai header `Authorization: Bearer <token>`.
+3. Endpoint **HTTPS wajib** (pengecualian `http://127.0.0.1` hanya untuk development).
+4. **Ambil job** dari platform, prioritas jalur:
+   - WebSocket / long-poll ke platform (realtime, auto-reconnect backoff), atau
+   - Polling via `chrome.alarms` (minimum 30 detik, sesuai aturan performa) ke `GET {platform}/jobs`.
+5. **Format job** memakai envelope 5 standar, contoh:
+   `{ "id": "...", "type": "request", "action": "linkedin.searchPeople", "payload": { "query": "...", "limit": 20 } }`
+   Job dipetakan ke script RPA (JSON steps standar bagian 4) — jadi action baru cukup tambah script, bukan kode baru.
+6. **Kirim hasil** ke `POST {platform}/ingest`: envelope + `jobId` + `idempotencyKey` (agar retry tidak dobel data) + status `ok|failed|skipped`. Payload besar dipecah per batch (maks 500 KB per request).
+7. **Outbox queue**: hasil yang gagal terkirim disimpan di `chrome.storage.local` dan dikirim ulang dengan backoff; antrian job juga persist agar selamat saat service worker mati.
+8. Eksekusi job di tab user dengan pacing manusia (delay antar aksi 300–800 ms, jitter), batas jumlah aksi per jam configurable, dan **pause otomatis** bila situs menunjukkan tanda pemblokiran (CAPTCHA, checkpoint, rate-limit) — laporkan status `blocked` ke platform, JANGAN coba bypass.
+9. Job bisa di-**pause/stop** dari sidebar; panel "Koneksi" menampilkan log job (id, action, status, jumlah data terkirim).
+10. **Batas etis & risiko (wajib tertulis di README):** hanya data yang terlihat oleh user login tersebut; tanpa menyimpan password situs target; tanpa bypass login/CAPTCHA; data pribadi diminimalkan sesuai kebutuhan job; otomatisasi akun sendiri bisa melanggar ToS situs target (mis. LinkedIn) — risiko pembatasan akun ditanggung dan disadari user.
+11. Ingest token di sisi platform sebaiknya **write-only** (hanya boleh kirim data + ambil job, bukan akses penuh akun) dan bisa di-rotate dari Settings tanpa install ulang.
+
 ---
 
 ## 6. Keamanan & Privasi (WAJIB)
@@ -169,7 +195,7 @@ Semua request punya timeout (default 10 detik) dan retry backoff untuk koneksi y
 
 ## 7. Kualitas & Delivery
 
-1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.1.
+1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.2.
 2. Tanpa error di console saat alur normal; log pakai satu class `Logger` dengan level, default minim.
 3. Versi `manifest.json` mengikuti SemVer; perubahan dicatat di `CHANGELOG.md`.
 4. Ikon: SVG sumber + PNG 16/32/48/128, ukuran kecil.
@@ -185,6 +211,7 @@ Semua request punya timeout (default 10 detik) dan retry backoff untuk koneksi y
 - [ ] Lapisan RPA lengkap (Engine, Selector, ActionLibrary, ScriptStore) + export/import JSON
 - [ ] Bila ada konektivitas: ConnectionHub + tab "Koneksi", connector sesuai bagian 5, default OFF, whitelist command, loopback-only, pairing token
 - [ ] Bila ada native messaging: companion host + host manifest + script install per OS disertakan
+- [ ] Bila ada Platform Bridge: ingest token via Settings, HTTPS, idempotencyKey + outbox queue, auto-pause saat blocked, peringatan ToS di README
 - [ ] Tidak ada polling liar, eval, CDN eksternal, atau secret di repo
 - [ ] Load unpacked di Chrome tanpa error console
 - [ ] README + CHANGELOG + manifest SemVer lengkap

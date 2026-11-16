@@ -7,9 +7,10 @@ Jika kamu agent yang diminta membuat extension dengan mengacu repo ini:
 3. Setiap class yang kamu buat: cek `wc -l` <= 300 sebelum commit. Jika lebih, pecah.
 4. Wajib ada lapisan `rpa/` lengkap walau extension-nya bukan tool RPA — itu fondasi bersama.
 5. Bila user minta koneksi ke web/desktop/terminal: ikuti STANDARDS.md bagian 5 — `ConnectionHub` + tab sidebar "Koneksi", SiteAdapter per situs, `NativeBridge` + companion host untuk desktop, whitelist command + loopback/pairing token untuk terminal. Semua connector default OFF.
-6. UI wajib: sidebar kanan 25% viewport (min 280px, max 420px), Shadow DOM, collapsible, tab vertikal menurun di sisi kiri sidebar, panel lazy.
-7. Vanilla JS ES Modules + class. Tanpa React/Vue, tanpa CDN, tanpa eval, tanpa polling liar.
-8. Jalankan **Checklist acceptance** di akhir STANDARDS.md dan laporkan hasilnya ke user (centang yang lolos, jelaskan yang tidak).
-9. Jangan commit token/secret apa pun. Gunakan token hanya untuk membuat repo & push sesuai perintah user.
-10. Bahasa UI dan README: Bahasa Indonesia, kecuali user minta lain.
-11. Jika ada konflik antara permintaan user dan standar ini, tanyakan user dulu — jangan diam-diam melanggar standar.
+6. Bila user menyebut "platform", "ingest token", atau extension pengumpul data untuk sistem lain: itu pola **Platform Bridge (bagian 5e)** — job dari platform → RPA di sesi login user → hasil ke endpoint ingest. Wajib: token via Settings, idempotencyKey, outbox queue, auto-pause saat blocked, peringatan ToS di README.
+7. UI wajib: sidebar kanan 25% viewport (min 280px, max 420px), Shadow DOM, collapsible, tab vertikal menurun di sisi kiri sidebar, panel lazy.
+8. Vanilla JS ES Modules + class. Tanpa React/Vue, tanpa CDN, tanpa eval, tanpa polling liar.
+9. Jalankan **Checklist acceptance** di akhir STANDARDS.md dan laporkan hasilnya ke user (centang yang lolos, jelaskan yang tidak).
+10. Jangan commit token/secret apa pun. Gunakan token hanya untuk membuat repo & push sesuai perintah user.
+11. Bahasa UI dan README: Bahasa Indonesia, kecuali user minta lain.
+12. Jika ada konflik antara permintaan user dan standar ini, tanyakan user dulu — jangan diam-diam melanggar standar.
