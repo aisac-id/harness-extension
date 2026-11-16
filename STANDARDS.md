@@ -1,4 +1,4 @@
-# STANDARDS — Harness Extension v1.2
+# STANDARDS — Harness Extension v1.3
 
 Semua extension di bawah akun `aisac-id` wajib mematuhi dokumen ini.
 Kata kunci: **WAJIB** (harus), **DISARANKAN** (sebaiknya), **DILARANG** (tidak boleh).
@@ -42,6 +42,17 @@ extension/
 │   ├── SelectorEngine.js     # resolusi selector + fallback
 │   ├── ActionLibrary.js      # click/type/wait/scroll/extract, dll.
 │   └── ScriptStore.js        # simpan/export/import script JSON
+├── scrapers/                 # mesin panen data (lihat bagian 6)
+│   ├── ScraperHub.js         # registri scraper + orkestrasi job panen
+│   ├── ImageScraper.js
+│   ├── TextScraper.js        # teks, tabel, list, metadata
+│   ├── NovelScraper.js       # multi-halaman/bab, export TXT/EPUB/MD
+│   └── FileDownloader.js     # unduh file via chrome.downloads
+├── pipeline/                 # olah, simpan, analisis hasil panen
+│   ├── DataPipeline.js       # extract → clean → store → export/kirim
+│   ├── LibraryStore.js       # IndexedDB: dataset + blob, metadata
+│   ├── AnalysisService.js    # statistik, dedupe, filter
+│   └── ExportService.js      # JSON/CSV/Markdown/TXT/EPUB/ZIP
 ├── connectors/               # lapisan konektivitas (lihat bagian 5)
 │   ├── ConnectionHub.js      # registri + status semua koneksi
 │   ├── web/                  # 1 class SiteAdapter per situs/API
@@ -182,7 +193,49 @@ Platform ◀──data── PlatformBridge ◀── hasil extract
 
 ---
 
-## 6. Keamanan & Privasi (WAJIB)
+## 6. Scraping & Data Pipeline — Panen Apa Pun, Olah, Simpan, Analisis (WAJIB bila fitur diminta)
+
+Prinsip: **RPA-first** — semua scraper bekerja pada DOM halaman yang dibuka user dengan sesinya sendiri, TANPA perlu API resmi dan TANPA perlu MCP. API/MCP hanya jalur tambahan opsional (6d).
+
+### 6a. Jenis scraper (class terpisah di `scrapers/`, terdaftar di `ScraperHub`)
+
+1. **ImageScraper**: kumpulkan `img/srcset`, picture, background-image, dan gambar lazy-load (scroll otomatis via RPA); filter ukuran minimum configurable; nama file dari alt/konteks; unduh massal via FileDownloader atau kemas ZIP.
+2. **TextScraper**: teks artikel (reader-mode extraction ringan buatan sendiri, maks 300 LoC — tanpa library Readability penuh), tabel → array of objects, list, dan metadata halaman (judul, penulis, tanggal). Selector pakai SelectorEngine bagian 4.
+3. **NovelScraper**: deteksi daftar bab + navigasi multi-halaman otomatis via RpaEngine (next-page, jeda antar halaman), bersihkan boilerplate (iklan/navigasi), dedupe bab, **resume** kalau terputus, export **TXT / Markdown / EPUB** (EPUB builder ringan tanpa dependency berat).
+4. **FileDownloader**: unduh file URL langsung via `chrome.downloads` (PDF, arsip, dokumen, media file langsung), antrian + retry + batas paralel (default 3). DILARANG: ripping stream terenkripsi/DRM, memecah HLS/DASH terproteksi.
+5. **Scraper umum**: scraper baru = class baru yang mengikuti kontrak seragam `plan() → run() → hasil item[]`, dipetakan ke script RPA JSON bila perlu navigasi. Job panen bisa datang dari sidebar manual ATAU dari platform via PlatformBridge (5e).
+
+### 6b. Pipeline hasil: extract → clean → store → analyze → export/kirim
+
+1. **DataPipeline** adalah satu-satunya jalur hasil scraper; scraper DILARANG menyimpan/mengirim data sendiri.
+2. Clean: trim, normalisasi whitespace/encoding, buang duplikat (hash konten), validasi skema item.
+3. Setiap item menyimpan provenance: URL sumber, waktu panen, scraper, jobId (bila dari platform).
+4. Hasil bisa: (a) disimpan ke library lokal, (b) di-export file, (c) dikirim ke platform via PlatformBridge — bisa kombinasi, dipilih user per job.
+
+### 6c. Penyimpanan & analisis lokal
+
+1. **LibraryStore** pakai **IndexedDB** untuk dataset besar + blob gambar/file (chrome.storage HANYA untuk settings & metadata kecil). Kuota default maks 500 MB, warning di 80%, pembersihan manual dari sidebar.
+2. Tab sidebar **"Data"** (masuk rail vertikal): daftar dataset, preview tabel/teks/galeri thumbnail, filter, hapus, dan tombol export/kirim per dataset.
+3. **AnalysisService** minimal: jumlah item, ukuran total, deteksi duplikat, distribusi domain/sumber; untuk novel: jumlah bab & kata; untuk tabel: statistik kolom sederhana. Semua komputasi lokal, lazy (hanya saat panel dibuka), tanpa blocking UI (chunk via `requestIdleCallback`).
+4. **ExportService**: JSON / CSV / Markdown / TXT / EPUB / ZIP (gambar/file). ZIP builder ringan (store/deflate via `CompressionStream` bawaan browser, tanpa JSZip penuh bila memungkinkan).
+
+### 6d. Konektivitas hybrid — RPA dulu, API/MCP kalau ada (opsional, "gas kalau bisa")
+
+1. Default semua scraper jalan **tanpa API/MCP**. Jangan pernah menjadikan API pihak ketiga sebagai syarat fitur inti.
+2. Bila situs target punya **API resmi**: tambahkan mode API di SiteAdapter (5a) — hasil tetap masuk DataPipeline yang sama, sehingga sumber DOM/API bisa ditukar tanpa mengubah penyimpanan/analisis.
+3. Bila ingin connect **MCP server**: jalurnya lewat companion (NativeBridge 5b / LocalBridge 5c) yang bertindak sebagai MCP client — extension sendiri TIDAK berbicara MCP langsung. Whitelist tool MCP wajib, default OFF, konfirmasi user per tool baru.
+4. Prioritas pemilihan jalur per job: API resmi (paling stabil & ramah situs) → MCP yang diizinkan → RPA DOM (selalu tersedia sebagai fallback).
+
+### 6e. Batas etis & legal (wajib tertulis di README)
+
+1. Hanya konten yang **bisa diakses user itu sendiri** di browser; DILARANG bypass paywall, login, CAPTCHA, atau DRM.
+2. Hormati hak cipta: hasil panen (termasuk novel/gambar) untuk penggunaan pribadi/analisis; README wajib memuat disclaimer bahwa redistribusi konten berhak cipta adalah tanggung jawab user.
+3. Pacing sopan: jeda antar halaman/unduhan (default 500–1500 ms + jitter), batas paralel, auto-pause saat situs menunjukkan rate-limit/checkpoint (lapor `blocked`, tanpa bypass).
+4. Data pribadi pihak lain diminimalkan sesuai kebutuhan job; tanpa exfiltration diam-diam — semua pengiriman ke platform terlihat di log tab "Koneksi".
+
+---
+
+## 7. Keamanan & Privasi (WAJIB)
 
 1. Permission manifest **minimum**: hanya yang benar-benar dipakai; `host_permissions` sesempit mungkin; hindari `<all_urls>` kecuali fitur memang butuh, dan jelaskan alasannya di README.
 2. DILARANG: `eval`, remote code, injeksi script dari URL eksternal, exfiltration data.
@@ -193,9 +246,9 @@ Platform ◀──data── PlatformBridge ◀── hasil extract
 
 ---
 
-## 7. Kualitas & Delivery
+## 8. Kualitas & Delivery
 
-1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.2.
+1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.3.
 2. Tanpa error di console saat alur normal; log pakai satu class `Logger` dengan level, default minim.
 3. Versi `manifest.json` mengikuti SemVer; perubahan dicatat di `CHANGELOG.md`.
 4. Ikon: SVG sumber + PNG 16/32/48/128, ukuran kecil.
@@ -212,6 +265,8 @@ Platform ◀──data── PlatformBridge ◀── hasil extract
 - [ ] Bila ada konektivitas: ConnectionHub + tab "Koneksi", connector sesuai bagian 5, default OFF, whitelist command, loopback-only, pairing token
 - [ ] Bila ada native messaging: companion host + host manifest + script install per OS disertakan
 - [ ] Bila ada Platform Bridge: ingest token via Settings, HTTPS, idempotencyKey + outbox queue, auto-pause saat blocked, peringatan ToS di README
+- [ ] Bila ada scraper: ScraperHub + DataPipeline satu jalur, LibraryStore IndexedDB, tab "Data" (preview/analisis/export), provenance per item, pacing sopan, disclaimer hak cipta di README
+- [ ] Scraper tetap jalan penuh tanpa API/MCP; jalur API/MCP (bila ada) opsional dan masuk pipeline yang sama
 - [ ] Tidak ada polling liar, eval, CDN eksternal, atau secret di repo
 - [ ] Load unpacked di Chrome tanpa error console
 - [ ] README + CHANGELOG + manifest SemVer lengkap

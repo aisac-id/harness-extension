@@ -13,6 +13,7 @@ Salin template ini, isi bagian `[...]`, lalu kirim ke agent bersama GitHub token
 > Fitur tambahan: [misal: recorder RPA, export hasil ke CSV, jadwal via alarms].
 > Konektivitas (jika perlu): [misal: "connect ke API situs X", "connect ke desktop app Y via native messaging", "bisa jalankan command terminal: git, npm"].
 > Platform Bridge (jika perlu): [misal: "extension jadi worker untuk platform saya: ambil job via ingest token, RPA cari data di LinkedIn pakai sesi login saya, kirim hasil ke endpoint ingest platform" — ikuti bagian 5e].
+> Scraper (jika perlu): [misal: "scraper gambar + novel multi-bab, hasil disimpan lokal, bisa dianalisis dan di-export EPUB/ZIP, dan bisa dikirim ke platform" — ikuti bagian 6, RPA-first tanpa API/MCP].
 >
 > **Wajib ikuti seluruh standar di repo `aisac-id/harness-extension`**
 > (https://github.com/aisac-id/harness-extension — baca STANDARDS.md dan AGENTS.md dulu).

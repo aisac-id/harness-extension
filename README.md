@@ -29,6 +29,7 @@ Template perintah lengkap ada di [PROMPT_TEMPLATE.md](PROMPT_TEMPLATE.md).
 | RPA | Semua extension harus RPA-ready: action layer terpisah, selector engine, recorder/player opsional, script JSON export/import |
 | Konektivitas | Bisa connect ke **situs/API tertentu** (SiteAdapter), **desktop app** (Native Messaging + companion host), dan **terminal/CLI** (whitelist command, loopback + pairing token) — semua via `ConnectionHub`, default OFF |
 | Platform Bridge | Extension jadi **worker RPA untuk platform**: platform kirim job via **ingest token** → extension RPA di sesi login user (mis. LinkedIn, tanpa API/MCP) → hasil dikirim ke endpoint ingest platform (outbox queue, idempotent, auto-pause saat blocked) |
+| Scraper & Pipeline | Panen apa pun: **gambar, teks/tabel, novel (TXT/EPUB/MD), download file** → pipeline clean/dedupe → **IndexedDB** → analisis & preview di tab "Data" → export JSON/CSV/ZIP atau kirim ke platform. **RPA-first, tanpa API/MCP**; API/MCP opsional bila tersedia |
 | Keamanan | Permission minimum, tanpa eval/remote code, tanpa secret hardcoded |
 
 Detail lengkap, struktur folder, dan checklist acceptance: **[STANDARDS.md](STANDARDS.md)**.
