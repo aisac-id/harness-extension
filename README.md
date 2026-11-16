@@ -1,7 +1,11 @@
 # Harness Extension
 
+![Harness Extension](brand/hero-banner.png)
+
 Standar resmi pembuatan browser extension untuk akun **aisac-id**.
 Repo ini adalah **kontrak**: setiap extension baru WAJIB mengikuti seluruh aturan di [STANDARDS.md](STANDARDS.md).
+
+Materi brand & promosi (logo, software box, poster, video): **[brand/](brand/README.md)** · Katalog ide 20 sektor bisnis: **[BUSINESS_PLAYBOOK.md](BUSINESS_PLAYBOOK.md)** · Tutorial UX 12 langkah: **[UX_FLOW.md](UX_FLOW.md)**
 
 ## Cara Pakai (untuk pemilik repo)
 
