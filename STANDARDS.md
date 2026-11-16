@@ -1,4 +1,4 @@
-# STANDARDS — Harness Extension v1.3
+# STANDARDS — Harness Extension v1.4
 
 Semua extension di bawah akun `aisac-id` wajib mematuhi dokumen ini.
 Kata kunci: **WAJIB** (harus), **DISARANKAN** (sebaiknya), **DILARANG** (tidak boleh).
@@ -86,7 +86,11 @@ extension/
    - `min-width: 280px`, `max-width: 420px` agar tetap usable di layar kecil/besar.
    - Tinggi 100% viewport, `position: fixed`, `z-index` maksimum yang wajar (2147483646).
 2. Render di dalam **Shadow DOM** agar CSS halaman host tidak bocor masuk dan sebaliknya.
-3. **Collapsible**: tombol toggle mengubah sidebar jadi rail sempit (±48px) atau tersembunyi; state tersimpan di storage. Toggle juga via shortcut keyboard (default `Alt+Shift+S`).
+3. **Tiga mode tampilan** (state tersimpan di storage, transisi hanya `transform/opacity`):
+   - **Rail**: collapsed, ±48px, hanya icon tab.
+   - **Sidebar** (default): 25% viewport sesuai aturan di atas.
+   - **Fullscreen**: overlay 100% viewport untuk kerja berat (tabel data, reader novel, editor script RPA, galeri gambar). Toggle via tombol di header + shortcut `Alt+Shift+F`; `Esc` keluar dari fullscreen; konten panel harus responsif terhadap ketiga mode (grid melebar, tabel tambah kolom).
+   - Toggle rail↔sidebar via tombol + shortcut `Alt+Shift+S`.
 4. **Tab vertikal**: icon rail menurun di sisi kiri sidebar (bukan tab horizontal di atas).
    - Setiap tab = satu panel class terpisah di `sidebar/panels/`.
    - Panel di-render lazy saat tab pertama kali dibuka.
@@ -94,6 +98,12 @@ extension/
 5. Sidebar TIDAK boleh menggeser layout halaman secara default (overlay). Mode "push content" opsional, off by default.
 6. Tema: dukung dark/light mengikuti `prefers-color-scheme`, tanpa flash saat load.
 7. Semua teks UI Bahasa Indonesia (kecuali diminta lain); aksesibel: focusable, `aria-label` pada icon button, kontras cukup.
+8. **Full Settings (WAJIB)** — tab "Settings" (icon gear, posisi terbawah rail vertikal), satu class `SettingsPanel` + sub-panel per kategori (masing-masing maks 300 LoC):
+   - **Semua perilaku harus bisa diatur** — DILARANG magic number hardcoded di luar class `Settings` (delay RPA, retry, timeout, batas paralel unduhan, filter ukuran gambar, kuota storage, pacing scraper, polling interval, dll. semua punya default di `Settings` dan bisa diubah user).
+   - Kategori minimal: **Umum** (bahasa, tema dark/light/system, mode tampilan default, shortcut), **RPA** (delay, retry, timeout, batas aksi/jam), **Scraper** (per jenis: filter, pacing, paralel, format export default), **Koneksi** (toggle per connector, Platform URL + ingest token, pairing token, whitelist command, status uji koneksi/test connection), **Data & Penyimpanan** (kuota, pemakaian, bersihkan per dataset, lokasi unduhan), **Lanjutan** (level log, mode developer).
+   - Fitur wajib panel Settings: **pencarian setting**, validasi input + pesan error jelas, tombol **reset per kategori & reset semua** (dengan konfirmasi), **export/import settings JSON** (secret/token TIDAK ikut ter-export secara default; opsi sertakan dengan peringatan eksplisit), perubahan berlaku **tanpa reload** bila memungkinkan.
+   - Secret ditampilkan tersamarkan (masked) dengan tombol lihat/salin, tidak pernah muncul di log.
+   - Settings versi-skema (`settingsVersion`) untuk migrasi saat extension update.
 
 ---
 
@@ -248,7 +258,7 @@ Prinsip: **RPA-first** — semua scraper bekerja pada DOM halaman yang dibuka us
 
 ## 8. Kualitas & Delivery
 
-1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.3.
+1. `README.md` tiap extension berisi: fungsi, cara install (load unpacked), daftar permission + alasan, cara install companion host/CLI bila ada connector, dan pernyataan patuh standar Harness v1.4.
 2. Tanpa error di console saat alur normal; log pakai satu class `Logger` dengan level, default minim.
 3. Versi `manifest.json` mengikuti SemVer; perubahan dicatat di `CHANGELOG.md`.
 4. Ikon: SVG sumber + PNG 16/32/48/128, ukuran kecil.
@@ -259,8 +269,8 @@ Prinsip: **RPA-first** — semua scraper bekerja pada DOM halaman yang dibuka us
 - [ ] Tidak ada file > 300 LoC (`wc -l` semua file `.js/.css/.html`)
 - [ ] Semua modul berbentuk class, entry MV3 service worker
 - [ ] Total ukuran unpacked < 500 KB
-- [ ] Sidebar 25% viewport, pinggir kanan, Shadow DOM, collapsible
-- [ ] Tab vertikal menurun di sisi, panel lazy
+- [ ] Sidebar 25% viewport, pinggir kanan, Shadow DOM, tiga mode (rail/sidebar/fullscreen + shortcut), tab vertikal menurun di sisi, panel lazy
+- [ ] Full Settings: semua perilaku configurable (tanpa magic number di luar Settings), pencarian, reset, export/import JSON (secret excluded default), test connection
 - [ ] Lapisan RPA lengkap (Engine, Selector, ActionLibrary, ScriptStore) + export/import JSON
 - [ ] Bila ada konektivitas: ConnectionHub + tab "Koneksi", connector sesuai bagian 5, default OFF, whitelist command, loopback-only, pairing token
 - [ ] Bila ada native messaging: companion host + host manifest + script install per OS disertakan

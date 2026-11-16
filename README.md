@@ -25,7 +25,7 @@ Template perintah lengkap ada di [PROMPT_TEMPLATE.md](PROMPT_TEMPLATE.md).
 | Paradigma | **OOP** — class ES6+, satu class satu tanggung jawab, satu file satu class utama |
 | Platform | Chrome **Manifest V3** (kompatibel Edge/Brave), service worker, bukan background page |
 | Performa | Ringan: vanilla JS / maksimal Preact, total bundle < 500 KB, tanpa framework berat, event-driven (bukan polling) |
-| UI | **Sidebar selebar 1/4 viewport** di pinggir kanan, collapsible, **tab vertikal** (icon rail menurun di sisi) |
+| UI | **Sidebar 1/4 viewport** di pinggir kanan + mode **rail** dan **fullscreen** (shortcut), collapsible, **tab vertikal**, **Full Settings** (semua perilaku configurable, export/import, test connection) |
 | RPA | Semua extension harus RPA-ready: action layer terpisah, selector engine, recorder/player opsional, script JSON export/import |
 | Konektivitas | Bisa connect ke **situs/API tertentu** (SiteAdapter), **desktop app** (Native Messaging + companion host), dan **terminal/CLI** (whitelist command, loopback + pairing token) — semua via `ConnectionHub`, default OFF |
 | Platform Bridge | Extension jadi **worker RPA untuk platform**: platform kirim job via **ingest token** → extension RPA di sesi login user (mis. LinkedIn, tanpa API/MCP) → hasil dikirim ke endpoint ingest platform (outbox queue, idempotent, auto-pause saat blocked) |
