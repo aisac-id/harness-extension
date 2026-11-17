@@ -67,7 +67,8 @@ Semua aset berada di folder [`promo/`](promo/) dan bebas dipakai untuk materi pr
 
 | Aset | Pratinjau | Ukuran |
 |---|---|---|
-| Logo | <img src="promo/logo.png" width="96"> | 1024×1024 |
+| Logo | <picture><source media="(prefers-color-scheme: dark)" srcset="promo/logo-white.png"><img src="promo/logo.png" width="96"></picture> | 1024×1024 |
+| Logo (mode gelap) | <img src="promo/logo-white.png" width="96"> | 1024×1024 |
 | Wordmark | <img src="promo/logo-wordmark.png" width="240"> | 1600×500 |
 | Software Box | <img src="promo/software-box.png" width="240"> | 1600×1200 |
 | Poster | <img src="promo/poster.png" width="160"> | 1200×1600 |
